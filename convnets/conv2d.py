@@ -1,6 +1,4 @@
 import numpy as np
-import torch
-import torch.nn.functional as f
 
 
 def conv2d(image, kernel, stride=1, padding="valid", fill=None):
@@ -16,6 +14,7 @@ def conv2d(image, kernel, stride=1, padding="valid", fill=None):
 
 
 def handle_padding(image, k, stride, padding, fill):
+    # assumes square image
     if padding == "same":
         p = (k - image.shape[0] * (1 - stride) - stride) // 2
     elif padding == "valid":
@@ -28,37 +27,27 @@ def handle_padding(image, k, stride, padding, fill):
 
 
 def pad(image, p=1, fill=0):
+    if p == 0:
+        return image
     h, w = image.shape
-    n = h + 2 * p
-    padded = np.full((n, n), fill_value=fill)
+    n, m = h + 2 * p, w + 2 * p
+    padded = np.full((n, m), fill_value=float(fill))
     padded[p:h + p, p:w + p] = image
     return padded
 
 
 def main():
-    image = np.random.randint(0, 10, (5, 5))
+    image = np.random.randn(5, 5)
     kernel = np.zeros((3, 3))
     kernel[1, 1] = 1
+    convd = conv2d(image, kernel, stride=1, padding="valid")
+    assert image[1, 1] == convd[0, 0]
 
-    print(image)
-    output = conv2d(image, kernel, padding="same")
-    print(output)
+    convd = conv2d(image, kernel, stride=1, padding="same", fill=0)
+    assert np.array_equal(image, convd)
 
-    print(image)
-    output = conv2d(image, kernel, stride=2, padding="valid")
-    print(output)
-
-    image = np.random.randint(0, 10, (7, 7))
-    kernel = np.zeros((3, 3))
-    kernel[1, 1] = 1
-
-    print(image)
-    output = conv2d(image, kernel, padding="valid")
-    print(output)
-
-    print(image)
-    output = conv2d(image, kernel, stride=2, padding="valid")
-    print(output)
+    convd = conv2d(image, kernel, stride=2, padding="valid")
+    assert image[1, 1] == convd[0, 0]
 
 
 if __name__ == "__main__":
