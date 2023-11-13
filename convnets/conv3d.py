@@ -37,6 +37,15 @@ def pad(image, p=1, fill=0):
     return padded
 
 
+def conv3d_multi(image, kernels, stride=1, padding="same", fill=None):
+    convds = []
+    for i in range(kernels.shape[0]):
+        kernel = kernels[i]
+        convd = conv3d(image, kernel, stride, padding, fill)
+        convds.append(convd)
+    return np.array(convds).transpose((1, 2, 0))
+
+
 def main():
     image = np.random.randn(5, 5, 3)
     kernel = np.zeros((3, 3, 3))
@@ -49,6 +58,19 @@ def main():
 
     convd = conv3d(image, kernel, stride=2, padding="valid")
     assert image[1, 1].sum() == convd[0, 0]
+
+    n_k = 64
+    kernels = np.random.rand(n_k, 3, 3, 3)
+    convd = conv3d_multi(image, kernels, stride=1, padding="valid")
+    assert convd.shape == (3, 3, 64)
+
+    kernels = np.random.rand(n_k, 3, 3, 3)
+    convd = conv3d_multi(image, kernels, stride=1, padding="same", fill=0)
+    assert convd.shape == (5, 5, 64)
+
+    kernels = np.random.rand(n_k, 3, 3, 3)
+    convd = conv3d_multi(image, kernels, stride=2, padding="valid")
+    assert convd.shape == (2, 2, 64)
 
 
 if __name__ == "__main__":
