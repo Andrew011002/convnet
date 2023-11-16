@@ -4,8 +4,9 @@ import numpy as np
 class Conv3D:
 
     def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding="valid", fill=0):
-        assert len(kernel_size) == 2, "can only convolve with 2D kernel"
-        assert kernel_size[0] == kernel_size[1], "can only convolve with square kernels"
+        assert len(kernel_size) == 3, "can only convolve with 3D kernel"
+        assert kernel_size[0] == kernel_size[1] and kernel_size[2] == in_channels, \
+            "can only convolve with square kernels"
         assert stride >= 1, "can't implement stride smaller than 1"
         if type(padding) in [int, float]:
             padding = (padding, padding)

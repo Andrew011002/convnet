@@ -3,7 +3,7 @@ import numpy as np
 
 class Conv2D:
 
-    def __init__(self, kernel_size, stride=1, padding="valid", fill=0):
+    def __init__(self, in_c, out_c, kernel_size, stride=1, padding="valid", fill=0):
         assert len(kernel_size) == 2, "can only convolve with 2D kernel"
         assert kernel_size[0] == kernel_size[1], "can only convolve with square kernels"
         assert stride >= 1, "can't implement stride smaller than 1"
@@ -22,52 +22,75 @@ class Conv2D:
         self.stride = stride
         self.padding = padding
         self.fill = fill
-        self.weight = np.random.randn(*kernel_size)
-        self.bias = np.zeros(1)
+        self.in_c = in_c
+        self.out_c = out_c
+        self.weight = np.random.randn(
+            out_c, in_c, kernel_size[0], kernel_size[1])
+        self.bias = np.zeros((1, out_c, 1, 1))
 
     def forward(self, x):
         x = self.pad(x, self.weight, self.stride, self.padding, self.fill)
-        return self.convovle2d(x, self.weight, self.stride) + self.bias
+        return self.convolve2d(x, self.weight, self.stride) + self.bias
 
-    def convovle2d(self, input, kernel, stride):
-        b, h, w = input.shape
-        k = kernel.shape[0]
-        shape = (b, (h - k) // stride + 1, (w - k) // stride + 1)
+    def convolve2d(self, input, kernel, stride):
+        batch_size, in_c, h, w = input.shape
+        out_c, in_c, k, k = kernel.shape
+        shape = (batch_size, out_c, (h - k) //
+                 stride + 1, (w - k) // stride + 1)
         output = np.empty(shape)
-        for i in range(0, h - k + 1, stride):
-            for j in range(0, w - k + 1, stride):
-                out = np.sum(input[:, i: i + k, j: j + k]
-                             * kernel, axis=(1, 2))
-                output[:, i // stride, j // stride] = out
+        for w_k in range(out_c):
+            for i in range(0, h - k + 1, stride):
+                for j in range(0, w - k + 1, stride):
+                    out = np.sum(input[:, :, i:i + k, j:j + k]
+                                 * kernel[w_k], axis=(1, 2, 3))
+                    output[:, w_k, i // stride, j // stride] = out
         return output
 
     def pad(self, input, kernel, stride=1, padding="valid", fill=0):
-        b, h, w = input.shape
-        k, _ = kernel.shape
+        batch_size, in_c, h, w = input.shape
+        out_c, in_c, k, k = kernel.shape
         pad = self._get_pad_val(h, w, k, stride, padding)
         n, m = h + 2 * pad[0], w + 2 * pad[1]
-        pad_arr = np.full((b, n, m), fill_value=fill, dtype=np.float32)
-        pad_arr[:, pad[0]:pad[0] + h, pad[1]:pad[1] + w] = input
+        pad_arr = np.full((batch_size, in_c, n, m),
+                          fill_value=fill, dtype=np.float32)
+        pad_arr[:, :, pad[0]:pad[0] + h, pad[1]:pad[1] + w] = input
         return pad_arr
 
     def _get_pad_val(self, h, w, k, stride, padding):
         if padding == "valid":
             return (0, 0)
         elif padding == "same":
-            p_h = (k + h * (1 - stride) - stride) // 2
-            p_w = (k + w * (1 - stride) - stride) // 2
-            return (p_h, p_w)
+            p_h = np.ceil((k + h * (stride - 1) - stride) / 2)
+            p_w = np.ceil((k + w * (stride - 1) - stride) / 2)
+            return tuple(map(int, (p_h, p_w)))
         return padding
 
 
 def main():
-    input = np.random.randn(16, 32, 32)
-    conv2d = Conv2D((3, 3), stride=1, padding="same")
-    conv2d.weight = np.zeros_like(conv2d.weight)
-    conv2d.weight[1, 1] = 1.0
+    input = np.random.randn(16, 3, 32, 32)
+    conv2d = Conv2D(3, 3, kernel_size=(3, 3), stride=1, padding="same")
     output = conv2d.forward(input)
-    print(output.shape)
-    assert np.allclose(input, output)
+    assert input.shape == output.shape
+
+    input = np.random.randn(16, 3, 55, 32)
+    conv2d = Conv2D(3, 20, kernel_size=(3, 3), stride=1, padding="same")
+    output = conv2d.forward(input)
+    assert output.shape == (16, 20, 55, 32)
+
+    input = np.random.randn(8, 3, 100, 100)
+    conv2d = Conv2D(3, 32, kernel_size=(5, 5), stride=1, padding="valid")
+    output = conv2d.forward(input)
+    assert output.shape == (8, 32, 96, 96)
+
+    input = np.random.randn(1, 3, 48, 71)
+    conv2d = Conv2D(3, 10, kernel_size=(10, 10), stride=2, padding="valid")
+    output = conv2d.forward(input)
+    assert output.shape == (1, 10, 20, 31)
+
+    input = np.random.randn(1, 3, 48, 71)
+    conv2d = Conv2D(3, 10, kernel_size=(10, 10), stride=2, padding="same")
+    output = conv2d.forward(input)
+    assert output.shape == (1, 10, 48, 71)
 
 
 if __name__ == "__main__":
