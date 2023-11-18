@@ -11,7 +11,7 @@ class Conv2D:
             padding = (padding, padding)
         if isinstance(padding, tuple):
             assert len(padding) == 2, "can only pad with tuple of 2 values"
-            assert all(p in [int, float] for p in padding), \
+            assert all(type(p) in [int, float] for p in padding), \
                 "can only pad with numeric types"
         else:
             assert padding in ["valid", "same"], \
@@ -91,6 +91,32 @@ def main():
     conv2d = Conv2D(3, 10, kernel_size=(10, 10), stride=2, padding="same")
     output = conv2d.forward(input)
     assert output.shape == (1, 10, 48, 71)
+
+    input = np.random.randn(5, 3, 30, 30)
+    conv2d = Conv2D(3, 16, kernel_size=(3, 3), stride=2, padding="valid")
+    output = conv2d.forward(input)
+    assert output.shape == (5, 16, 14, 14)
+
+    input = np.random.randn(2, 3, 24, 24)
+    conv2d = Conv2D(3, 4, kernel_size=(4, 4), stride=1, padding=(2, 2))
+    output = conv2d.forward(input)
+    assert output.shape == (2, 4, 25, 25)
+
+    input = np.random.randn(1, 3, 15, 15)
+    conv2d = Conv2D(3, 6, kernel_size=(3, 3),
+                    stride=1, padding="valid", fill=1)
+    output = conv2d.forward(input)
+    assert output.shape == (1, 6, 13, 13)
+
+    input = np.random.randn(1, 3, 32, 32)
+    conv2d = Conv2D(3, 1, kernel_size=(3, 3), stride=2, padding="same")
+    output = conv2d.forward(input)
+    assert output.shape == (1, 1, 32, 32)
+
+    input = np.random.randn(1, 3, 32, 32)
+    conv2d = Conv2D(3, 1, kernel_size=(3, 3), stride=2, padding=(3, 3))
+    output = conv2d.forward(input)
+    assert output.shape == (1, 1, 18, 18)
 
 
 if __name__ == "__main__":

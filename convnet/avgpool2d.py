@@ -3,7 +3,7 @@ import numpy as np
 
 class AvgPool2D:
 
-    def __init__(self, in_channels, kernel_size, stride=1, padding="valid", fill=0) -> None:
+    def __init__(self, kernel_size, stride=1, padding="valid", fill=0) -> None:
         assert len(kernel_size) == 2, "can only convolve with 2D kernel"
         assert kernel_size[0] == kernel_size[1], "can only convolve with square kernels"
         assert stride >= 1, "can't implement stride smaller than 1"
@@ -11,17 +11,16 @@ class AvgPool2D:
             padding = (padding, padding)
         if isinstance(padding, tuple):
             assert len(padding) == 2, "can only pad with tuple of 2 values"
-            assert all(p in [int, float] for p in padding), \
+            assert all(type(p) in [int, float] for p in padding), \
                 "can only pad with numeric types"
         else:
             assert padding in ["valid", "same"], \
                 "padding types can only be valid or same"
         assert type(fill) in [int, float], "can only fill with numeric types"
-        self.in_channels = in_channels
         self.stride = stride
         self.padding = padding
         self.fill = fill
-        self.kernel_size = (in_channels, kernel_size[0], kernel_size[1])
+        self.kernel_size = (kernel_size[0], kernel_size[1])
 
     def forward(self, x):
         x = self.pad(x, self.kernel_size, self.stride, self.padding, self.fill)
@@ -29,7 +28,7 @@ class AvgPool2D:
 
     def pool(self, input, kernel_size, stride):
         batch_size, in_c, h, w = input.shape
-        in_c, k, k = kernel_size
+        k, k = kernel_size
         n, m = (h - k) // stride + 1, (w - k) // stride + 1
         output = np.empty((batch_size, in_c, n, m))
 
@@ -41,7 +40,7 @@ class AvgPool2D:
 
     def pad(self, input, kernel_size, stride=1, padding="valid", fill=0):
         batch_size, in_c, h, w = input.shape
-        in_c, k, k = kernel_size
+        k, k = kernel_size
         pad = self._get_pad_val(h, w, k, stride, padding)
         n, m = h + 2 * pad[0], w + 2 * pad[1]
         pad_arr = np.full((batch_size, in_c, n, m),
@@ -60,11 +59,36 @@ class AvgPool2D:
 
 
 def main():
-    pool = AvgPool2D(3, kernel_size=(2, 2), stride=1, padding="valid")
-    input = np.random.randint(0, 10, (1, 3, 8, 8))
+    pool = AvgPool2D(kernel_size=(3, 3), stride=2, padding="valid")
+    input = np.random.rand(5, 3, 32, 32)
     output = pool.forward(input)
-    print(input)
-    print(output)
+    assert output.shape == (5, 3, 15, 15)
+
+    pool = AvgPool2D(kernel_size=(2, 2), stride=2, padding="valid")
+    input = np.random.rand(1, 3, 4, 4)
+    output = pool.forward(input)
+    assert output.shape == (1, 3, 2, 2)
+    for c in range(3):
+        for i in range(2):
+            for j in range(2):
+                expected_max = np.mean(
+                    input[0, c, i * 2:i * 2 + 2, j * 2:j * 2 + 2])
+                assert np.isclose(output[0, c, i, j], expected_max)
+
+    pool = AvgPool2D(kernel_size=(3, 3), stride=1, padding="same")
+    input = np.random.rand(2, 3, 5, 5)
+    output = pool.forward(input)
+    assert output.shape == (2, 3, 5, 5)
+
+    pool = AvgPool2D(kernel_size=(2, 2), stride=3, padding="valid")
+    input = np.random.rand(1, 3, 6, 6)
+    output = pool.forward(input)
+    assert output.shape == (1, 3, 2, 2)
+
+    pool = AvgPool2D(kernel_size=(3, 3), stride=2, padding=(1, 1), fill=-1)
+    input = np.random.rand(1, 3, 4, 4)
+    output = pool.forward(input)
+    assert output.shape == (1, 3, 2, 2)
 
 
 if __name__ == "__main__":
