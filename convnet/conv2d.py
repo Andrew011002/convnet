@@ -66,6 +66,34 @@ class Conv2D:
         return padding
 
 
+# correct convolution (via GPT-4)
+def generate_correct_output(input_matrix, kernel, stride):
+    batch_size, in_c, h, w = input_matrix.shape
+    out_c, _, k, _ = kernel.shape
+    out_h = (h - k) // stride + 1
+    out_w = (w - k) // stride + 1
+    output = np.zeros((batch_size, out_c, out_h, out_w))
+
+    for b in range(batch_size):
+        for i in range(0, out_h):
+            for j in range(0, out_w):
+                for c in range(out_c):
+                    h_start = i * stride
+                    h_end = h_start + k
+                    w_start = j * stride
+                    w_end = w_start + k
+                    output[b, c, i, j] = np.sum(
+                        input_matrix[b, :, h_start:h_end, w_start:w_end]
+                        * kernel[c, :, :, :])
+    return output
+
+
+def tester(conv, input, expected_output):
+    output = conv.forward(input)
+    test_passed = np.allclose(output, expected_output)
+    return test_passed
+
+
 def main():
     input = np.random.randn(16, 3, 32, 32)
     conv2d = Conv2D(3, 3, kernel_size=(3, 3), stride=1, padding="same")
@@ -117,6 +145,17 @@ def main():
     conv2d = Conv2D(3, 1, kernel_size=(3, 3), stride=2, padding=(3, 3))
     output = conv2d.forward(input)
     assert output.shape == (1, 1, 18, 18)
+
+    input = np.round(np.random.rand(3, 3, 32, 32))
+    conv2d = Conv2D(3, 8, kernel_size=(5, 5), stride=1, padding="valid")
+    expected = generate_correct_output(input, conv2d.weight, stride=1)
+    assert tester(conv2d, input, expected)
+
+    input = np.round(np.random.rand(3, 3, 32, 32))
+    conv2d = Conv2D(3, 8, kernel_size=(5, 5), stride=1, padding="same")
+    padded = conv2d.pad(input, conv2d.weight, stride=1, padding="same")
+    expected = generate_correct_output(padded, conv2d.weight, stride=1)
+    assert tester(conv2d, input, expected)
 
 
 if __name__ == "__main__":

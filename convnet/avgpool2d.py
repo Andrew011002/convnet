@@ -58,22 +58,35 @@ class AvgPool2D:
         return padding
 
 
+def tester(pool, input, stride):
+    k, k = pool.kernel_size
+    batch_size, c_in, old_h, old_w = input.shape
+    h, w = (old_h - k) // stride + 1, (old_w - k) // stride + 1
+    output = pool.forward(input)
+    for b in range(batch_size):
+        for c in range(c_in):
+            for i in range(h):
+                for j in range(w):
+                    expected_max = np.mean(
+                        input[b, c, i * stride:i * stride + k, j * stride:j * stride + k])
+                    if not np.isclose(
+                            output[b, c, i, j], expected_max):
+                        return False
+    return True
+
+
 def main():
     pool = AvgPool2D(kernel_size=(3, 3), stride=2, padding="valid")
-    input = np.random.rand(5, 3, 32, 32)
+    input = np.round(np.random.rand(5, 3, 7, 7) * 10)
     output = pool.forward(input)
-    assert output.shape == (5, 3, 15, 15)
+    assert output.shape == (5, 3, 3, 3)
+    assert tester(pool, input, stride=pool.stride)
 
     pool = AvgPool2D(kernel_size=(2, 2), stride=2, padding="valid")
     input = np.random.rand(1, 3, 4, 4)
     output = pool.forward(input)
     assert output.shape == (1, 3, 2, 2)
-    for c in range(3):
-        for i in range(2):
-            for j in range(2):
-                expected_max = np.mean(
-                    input[0, c, i * 2:i * 2 + 2, j * 2:j * 2 + 2])
-                assert np.isclose(output[0, c, i, j], expected_max)
+    assert tester(pool, input, stride=pool.stride)
 
     pool = AvgPool2D(kernel_size=(3, 3), stride=1, padding="same")
     input = np.random.rand(2, 3, 5, 5)
@@ -84,6 +97,7 @@ def main():
     input = np.random.rand(1, 3, 6, 6)
     output = pool.forward(input)
     assert output.shape == (1, 3, 2, 2)
+    assert tester(pool, input, stride=pool.stride)
 
     pool = AvgPool2D(kernel_size=(3, 3), stride=2, padding=(1, 1), fill=-1)
     input = np.random.rand(1, 3, 4, 4)
